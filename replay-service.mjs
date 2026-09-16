@@ -1,16 +1,20 @@
-import { readFile } from 'node:fs/promises';
 import { replayResult, resetReplayState, runFixture } from './replay.mjs';
+import normalD1A from './fixtures/normal-d1-a.json' with { type: 'json' };
+import normalD1B from './fixtures/normal-d1-b.json' with { type: 'json' };
+import normalD2 from './fixtures/normal-d2.json' with { type: 'json' };
+import timeout from './fixtures/timeout.json' with { type: 'json' };
+import auth401 from './fixtures/auth-401.json' with { type: 'json' };
+import rate429 from './fixtures/rate-429.json' with { type: 'json' };
+import offline from './fixtures/offline.json' with { type: 'json' };
+import schemaBreak from './fixtures/schema-break.json' with { type: 'json' };
+import recoverD2 from './fixtures/recover-d2.json' with { type: 'json' };
 
-const FILES = new Map([
-  ['T04-NORMAL-D1-A', new URL('./fixtures/normal-d1-a.json', import.meta.url)],
-  ['T04-NORMAL-D1-B', new URL('./fixtures/normal-d1-b.json', import.meta.url)],
-  ['T04-NORMAL-D2', new URL('./fixtures/normal-d2.json', import.meta.url)],
-  ['T04-TIMEOUT', new URL('./fixtures/timeout.json', import.meta.url)],
-  ['T04-AUTH-401', new URL('./fixtures/auth-401.json', import.meta.url)],
-  ['T04-RATE-429', new URL('./fixtures/rate-429.json', import.meta.url)],
-  ['T04-OFFLINE', new URL('./fixtures/offline.json', import.meta.url)],
-  ['T04-SCHEMA-BREAK', new URL('./fixtures/schema-break.json', import.meta.url)],
-  ['T04-RECOVER-D2', new URL('./fixtures/recover-d2.json', import.meta.url)],
+const FIXTURES = new Map([
+  ['T04-NORMAL-D1-A', normalD1A], ['T04-NORMAL-D1-B', normalD1B],
+  ['T04-NORMAL-D2', normalD2], ['T04-TIMEOUT', timeout],
+  ['T04-AUTH-401', auth401], ['T04-RATE-429', rate429],
+  ['T04-OFFLINE', offline], ['T04-SCHEMA-BREAK', schemaBreak],
+  ['T04-RECOVER-D2', recoverD2],
 ]);
 
 export const REPLAY_SCENARIOS = Object.freeze({
@@ -24,13 +28,13 @@ export const REPLAY_SCENARIOS = Object.freeze({
   recover: ['T04-NORMAL-D1-A', 'T04-NORMAL-D1-B', 'T04-TIMEOUT', 'T04-RECOVER-D2'],
 });
 
-const loadFixture = async (id) => JSON.parse(await readFile(FILES.get(id), 'utf8'));
+const loadFixture = (id) => structuredClone(FIXTURES.get(id));
 
 export async function runReplayScenario(name) {
   const sequence = REPLAY_SCENARIOS[name];
   if (!sequence) return null;
   let state = resetReplayState();
-  for (const id of sequence) state = runFixture(state, await loadFixture(id));
+  for (const id of sequence) state = runFixture(state, loadFixture(id));
   const result = replayResult(state);
   return {
     synthetic: true,
