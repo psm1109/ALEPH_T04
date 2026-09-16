@@ -95,10 +95,17 @@ node --env-file=.env --input-type=module -e "const r=await fetch('https://YOUR-P
 
 ```sh
 node --test --test-isolation=none tests/*.test.mjs
+node scripts/replay-fixtures.mjs
 node --env-file=.env scripts/verify-live.mjs
 ```
 
-첫 명령은 외부 연결 없는 테스트입니다. 정상/미수신/오류, 전일 비교, 한국 자정, 동시 수집, DB 실패, 인증키 비노출 및 Cron 인증을 검증합니다. 둘째 명령은 실제 연결을 사용해 정상 한 건의 원자료·DB 재조회값·화면용 API값을 비교합니다. 오늘 기록이 없으면 실제 수집을 수행할 수 있습니다.
+첫 명령은 외부 연결 없는 전체 테스트입니다. 정상/미수신/오류, 전일 비교, 한국 자정, 동시 수집, DB 실패, 인증키 비노출, Cron 인증과 공개 fixture 상태 전이를 검증합니다. 둘째 명령은 C26의 다섯 합성 실패 fixture를 각각 초기 상태에서 재생합니다. 특정 fixture만 확인하려면 ID를 인자로 전달합니다.
+
+```sh
+node scripts/replay-fixtures.mjs T04-TIMEOUT
+```
+
+fixture replay는 `fixtures/`의 공개 합성 JSON과 프로세스 메모리만 사용합니다. `.env`, 실제 한국수출입은행 API, 운영 Supabase에는 접근하지 않으므로 reset과 실패 재생이 실제 환율 기록을 변경하지 않습니다. 셋째 명령은 실제 연결을 사용해 정상 한 건의 원자료·DB 재조회값·화면용 API값을 비교합니다. 오늘 기록이 없으면 실제 수집을 수행할 수 있습니다.
 
 DB에서 직접 확인할 SQL은 [`supabase/verify.sql`](supabase/verify.sql)입니다. 화면 하단 **데이터 확인**을 펼치면 원자료·저장값·화면값과 미국 달러 원본 JSON을 함께 확인할 수 있습니다.
 
@@ -114,7 +121,10 @@ server.mjs              로컬 개발 서버 (공개 파일만 명시적으로 �
 supabase/schema.sql     DB 테이블/권한/수집 함수
 supabase/verify.sql     정상 한 건과 수집 상태 확인 SQL
 scripts/backfill.mjs    실제 과거 데이터 초기 적재
+scripts/replay-fixtures.mjs 공개 합성 fixture 재생 CLI
 scripts/verify-live.mjs 실제 저장값 검증
+fixtures/               T04 공개 합성 fixture 9종
+replay.mjs              합성 전용 정규화·저장·오류 상태 전이
 tests/                  데이터 및 서버 동작 테스트
 vercel.json             정적 파일, 서버리스 함수, Cron 설정
 ```
