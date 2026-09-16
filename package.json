@@ -1,0 +1,15 @@
+{
+  "name": "dollar-note",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "한국수출입은행과 Supabase 기반 일별 달러 환율 정보판",
+  "engines": { "node": "24.x" },
+  "scripts": {
+    "dev": "node --env-file-if-exists=.env --watch server.mjs",
+    "start": "node --env-file-if-exists=.env server.mjs",
+    "test": "node --test --test-isolation=none tests/*.test.mjs",
+    "verify:live": "node --env-file-if-exists=.env scripts/verify-live.mjs",
+    "backfill": "node --env-file-if-exists=.env scripts/backfill.mjs"
+  }
+}
