@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { replayResult, resetReplayState, runFixture } from '../replay.mjs';
+import { createApp } from '../app.mjs';
+import { runReplayScenario } from '../replay-service.mjs';
 
 const names = {
   'T04-NORMAL-D1-A': 'normal-d1-a.json', 'T04-NORMAL-D1-B': 'normal-d1-b.json',
@@ -61,4 +63,36 @@ test('합성 reset은 새 메모리 상태만 만들고 환경변수나 외부 �
   const first = resetReplayState();
   first.daily_readings.push({ marker: true });
   assert.deepEqual(resetReplayState().daily_readings, []);
+});
+
+test('무상태 replay API는 운영 저장소와 외부 API 없이 별도 실패 상태를 반환한다', async () => {
+  const app = createApp({
+    env: {},
+    fetchImpl: async () => { throw new Error('외부 API를 호출하면 안 됩니다.'); },
+    storageFactory: () => { throw new Error('운영 저장소를 호출하면 안 됩니다.'); },
+  });
+  const response = await app(new Request('http://localhost/api/replay?scenario=rate_limit'));
+  const data = await response.json();
+  assert.equal(response.status, 200);
+  assert.equal(data.synthetic, true);
+  assert.deepEqual(data.status, { freshness: 'stale', error_code: 'rate_limit' });
+  assert.equal(data.row_count, 1);
+  assert.equal(data.stored_value, 105);
+  assert.equal(data.retry_available, true);
+});
+
+test('회복 API는 요청마다 전체 시퀀스를 다시 계산해 fresh/none을 반환한다', async () => {
+  const result = await runReplayScenario('recover');
+  assert.deepEqual(result.status, { freshness: 'fresh', error_code: 'none' });
+  assert.equal(result.row_count, 2);
+  assert.equal(result.stored_value, 120);
+  assert.equal(result.delta, 15);
+  assert.equal(result.retry_available, false);
+  assert.equal(result.records.filter((row) => row.record_date === '2026-08-25').length, 1);
+});
+
+test('알 수 없는 replay 시나리오는 400으로 거부한다', async () => {
+  const app = createApp();
+  const response = await app(new Request('http://localhost/api/replay?scenario=unknown'));
+  assert.equal(response.status, 400);
 });

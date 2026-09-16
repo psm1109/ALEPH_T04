@@ -19,4 +19,14 @@ test('배포 설정은 정적 파일과 API를 분리하고 정오 KST에 Cron�
   assert.equal(config.buildCommand, '');
   assert.equal(config.crons[0].path, '/api/collect');
   assert.equal(config.crons[0].schedule, '0 3 * * *');
+  assert.deepEqual(config.rewrites[0], { source: '/replay', destination: '/replay.html' });
+});
+
+test('공개 장애 재생 화면은 실패 선택과 다시 시도 동작을 제공한다', async () => {
+  const html = await readFile(new URL('../public/replay.html', import.meta.url), 'utf8');
+  const script = await readFile(new URL('../public/replay-ui.js', import.meta.url), 'utf8');
+  for (const scenario of ['timeout', 'auth', 'rate_limit', 'offline', 'schema_error']) assert.match(html, new RegExp(`data-scenario="${scenario}"`));
+  assert.match(html, /id="retry"/);
+  assert.match(script, /run\('recover'\)/);
+  assert.match(script, /\/api\/replay\?scenario=/);
 });

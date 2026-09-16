@@ -2,6 +2,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { fetchUsd, RateError, SOURCE_NAME, SOURCE_URL } from './rates.mjs';
 import { createStorage } from './storage.mjs';
 import { koreanDate, shiftDate, compareRates, TIME_ZONE } from './public/format.js';
+import { runReplayScenario } from './replay-service.mjs';
 
 const ERROR_TEXT = {
   auth_error: '출처 API 인증에 실패했어요.', quota_exceeded: '출처 API의 일일 조회 한도에 도달했어요.',
@@ -86,9 +87,14 @@ export function createApp({ env = process.env, fetchImpl = fetch, now = () => ne
     const headers = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' };
     const respond = (body, status = 200) => new Response(JSON.stringify(body), { status, headers });
     const url = new URL(request.url);
-    if (!['/api/dashboard', '/api/collect'].includes(url.pathname)) return respond({ error: '요청한 API가 없어요.' }, 404);
+    if (!['/api/dashboard', '/api/collect', '/api/replay'].includes(url.pathname)) return respond({ error: '요청한 API가 없어요.' }, 404);
     if (request.method !== 'GET') return new Response(JSON.stringify({ error: 'GET 요청만 지원해요.' }), { status: 405, headers: { ...headers, Allow: 'GET' } });
     try {
+      if (url.pathname === '/api/replay') {
+        const scenario = url.searchParams.get('scenario') || 'baseline';
+        const result = await runReplayScenario(scenario);
+        return result ? respond(result) : respond({ error: '지원하지 않는 합성 재생 시나리오예요.' }, 400);
+      }
       if (url.pathname === '/api/dashboard') return respond(await dashboard());
       const secret = env.CRON_SECRET;
       const received = Buffer.from(request.headers.get('authorization') || '');

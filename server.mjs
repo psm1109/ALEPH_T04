@@ -9,6 +9,10 @@ const files = {
   '/app.js': ['app.js', 'text/javascript; charset=utf-8'],
   '/format.js': ['format.js', 'text/javascript; charset=utf-8'],
   '/style.css': ['style.css', 'text/css; charset=utf-8'],
+  '/replay': ['replay.html', 'text/html; charset=utf-8'],
+  '/replay.html': ['replay.html', 'text/html; charset=utf-8'],
+  '/replay-ui.js': ['replay-ui.js', 'text/javascript; charset=utf-8'],
+  '/replay.css': ['replay.css', 'text/css; charset=utf-8'],
   '/favicon.svg': ['favicon.svg', 'image/svg+xml'],
 };
 const root = new URL('./public/', import.meta.url);
