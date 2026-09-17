@@ -10,6 +10,7 @@
     "start": "node --env-file-if-exists=.env server.mjs",
     "test": "node --test --test-isolation=none tests/*.test.mjs",
     "test:fixtures": "node scripts/replay-fixtures.mjs",
+    "verify:package": "node scripts/verify-public-package.mjs",
     "verify:live": "node --env-file-if-exists=.env scripts/verify-live.mjs",
     "backfill": "node --env-file-if-exists=.env scripts/backfill.mjs"
   }

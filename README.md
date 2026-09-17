@@ -96,6 +96,7 @@ node --env-file=.env --input-type=module -e "const r=await fetch('https://YOUR-P
 ```sh
 node --test --test-isolation=none tests/*.test.mjs
 node scripts/replay-fixtures.mjs
+node scripts/verify-public-package.mjs "공개 package 폴더 경로"
 node --env-file=.env scripts/verify-live.mjs
 ```
 
@@ -106,6 +107,8 @@ node scripts/replay-fixtures.mjs T04-TIMEOUT
 ```
 
 fixture replay는 `fixtures/`의 공개 합성 JSON과 프로세스 메모리만 사용합니다. `.env`, 실제 한국수출입은행 API, 운영 Supabase에는 접근하지 않으므로 reset과 실패 재생이 실제 환율 기록을 변경하지 않습니다. 셋째 명령은 실제 연결을 사용해 정상 한 건의 원자료·DB 재조회값·화면용 API값을 비교합니다. 오늘 기록이 없으면 실제 수집을 수행할 수 있습니다.
+
+공개 package 검증 명령은 `public-contract.json`과 `asset-manifest.json`의 package ID, 공개 파일 17개의 크기·SHA-256, fixture 9개의 canonical hash, 프로젝트에 포함된 fixture 내용까지 대조합니다. 하나라도 다르면 실패 종료 코드 1을 반환합니다.
 
 배포된 사이트의 `/replay`에서는 다섯 실패 fixture를 직접 선택할 수 있습니다. 각 요청은 D1-A와 D1-B부터 전체 시퀀스를 새로 계산하는 무상태 방식이며, 실패 시 `stale`과 표준 `error_code`, 마지막 정상값 105, 일별 행 1건을 표시합니다. **다시 시도하여 회복 재생**을 누르면 TIMEOUT 뒤 RECOVER-D2 시퀀스를 계산해 `fresh / none`, 값 120, 행 2건, 전일 대비 15를 표시합니다. 이 공개 화면과 `/api/replay`도 운영 DB를 변경하지 않습니다.
 
@@ -124,6 +127,7 @@ supabase/schema.sql     DB 테이블/권한/수집 함수
 supabase/verify.sql     정상 한 건과 수집 상태 확인 SQL
 scripts/backfill.mjs    실제 과거 데이터 초기 적재
 scripts/replay-fixtures.mjs 공개 합성 fixture 재생 CLI
+scripts/verify-public-package.mjs 공개 package ID·hash·fixture 대조
 scripts/verify-live.mjs 실제 저장값 검증
 fixtures/               T04 공개 합성 fixture 9종
 replay.mjs              합성 전용 정규화·저장·오류 상태 전이
