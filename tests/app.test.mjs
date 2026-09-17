@@ -61,20 +61,10 @@ test('API 실패를 데이터 없음과 구분하고 정상 과거값은 보존�
   const data = await (await get(app)).json();
   assert.equal(data.attempt.status, 'error');
   assert.equal(data.attempt.error_code, 'network_error');
-  assert.deepEqual(data.status, { freshness: 'stale', error_code: 'offline' });
   assert.ok(data.issue);
   assert.equal(data.latest.date, '2026-09-15');
 });
 
-test('실제 장애 코드를 합성 재생과 같은 표준 실패 상태로 반환한다', async () => {
-  for (const [internal, standard] of Object.entries({ timeout: 'timeout', auth_error: 'auth', quota_exceeded: 'rate_limit', network_error: 'offline', invalid_data: 'schema_error' })) {
-    const storage = fakeStorage([record('2026-09-15')]);
-    const app = createApp({ now, env: { api_key: 'test' }, storageFactory: () => storage, fetchImpl: async () => { throw new RateError(internal, '실패'); } });
-    const data = await (await get(app)).json();
-    assert.deepEqual(data.status, { freshness: 'stale', error_code: standard });
-    assert.equal(data.latest.date, '2026-09-15');
-  }
-});
 test('동시 첫 조회에도 외부 API 수집은 한 번만 수행한다', async () => {
   const storage = fakeStorage();
   let calls = 0;

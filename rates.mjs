@@ -42,10 +42,7 @@ export async function fetchUsd(date = koreanDate(), { apiKey = process.env.api_k
   url.search = new URLSearchParams({ authkey: apiKey, searchdate: date.replaceAll('-', ''), data: 'AP01' });
   try {
     const response = await fetchImpl(url, { signal: AbortSignal.timeout(10000), headers: { Accept: 'application/json' }, cache: 'no-store' });
-    if (!response.ok) {
-      const code = [401, 403].includes(response.status) ? 'auth_error' : response.status === 429 ? 'quota_exceeded' : 'upstream_error';
-      throw new RateError(code, `출처 API가 HTTP ${response.status}로 응답했어요.`);
-    }
+    if (!response.ok) throw new RateError('upstream_error', `출처 API가 HTTP ${response.status}로 응답했어요.`);
     let payload;
     try { payload = await response.json(); }
     catch { throw new RateError('invalid_data', '출처에서 JSON 데이터를 받지 못했어요.'); }

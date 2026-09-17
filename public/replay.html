@@ -27,7 +27,7 @@
     </section>
 
     <section class="card replay-controls" aria-labelledby="scenario-title">
-      <div><h2 id="scenario-title">재생할 상태</h2><p>버튼을 누르면 D1-A → D1-B 기준 상태 뒤에 선택한 fixture를 적용합니다.</p></div>
+      <div><h2 id="scenario-title">재생할 상태</h2><p>오류 상황을 선택하면 마지막 정상 기록을 유지한 정보판 상태를 보여 줍니다.</p></div>
       <div class="scenario-buttons" role="group" aria-label="합성 fixture 선택">
         <button type="button" data-scenario="timeout">시간 초과</button>
         <button type="button" data-scenario="auth">인증 거절</button>
@@ -50,7 +50,6 @@
         <dl class="metadata replay-metadata">
           <div><dt>freshness</dt><dd id="freshness">—</dd></div>
           <div><dt>error_code</dt><dd id="error-code">—</dd></div>
-          <div><dt>fixture</dt><dd id="fixture-id">—</dd></div>
           <div><dt>일별 행</dt><dd id="row-count">—</dd></div>
         </dl>
         <button type="button" id="retry" class="retry-button" hidden>다시 시도하여 회복 재생</button>
@@ -63,7 +62,7 @@
 
     <section class="card history-card replay-history" aria-labelledby="replay-history-title">
       <div class="section-heading"><div><h2 id="replay-history-title">합성 일별 기록</h2><p>이 기록은 메모리 계산 결과이며 운영 Supabase에 저장되지 않습니다.</p></div><span class="count-chip" id="replay-count">0건</span></div>
-      <div class="table-scroll"><table><thead><tr><th>record ID</th><th>기준일</th><th>값</th><th>출처</th></tr></thead><tbody id="replay-rows"></tbody></table></div>
+      <div class="table-scroll"><table><thead><tr><th>기준일</th><th>값</th><th>전일 대비</th><th>수집 상태</th></tr></thead><tbody id="replay-rows"></tbody></table></div>
     </section>
     <p class="replay-boundary">공개 합성 자료는 저장·장애·회복 계산만 검증하며 실제 공개 원천 조회나 서로 다른 실제 날짜의 영수증을 대신하지 않습니다.</p>
   </main>
