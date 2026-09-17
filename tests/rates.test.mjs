@@ -49,3 +49,8 @@ test('오류 메시지에 인증키나 요청 URL을 노출하지 않는다', as
   await assert.rejects(fetchUsd('2026-09-16', { apiKey: 'key', fetchImpl: async () => new Response('unavailable', { status: 503 }) }), { code: 'upstream_error' });
   await assert.rejects(fetchUsd('2026-09-16', { apiKey: 'key', fetchImpl: async () => new Response('<html>blocked</html>') }), { code: 'invalid_data' });
 });
+
+test('HTTP 401과 429를 인증 거절과 호출 제한으로 구분한다', async () => {
+  await assert.rejects(fetchUsd('2026-09-16', { apiKey: 'test', fetchImpl: async () => new Response('', { status: 401 }) }), { code: 'auth_error' });
+  await assert.rejects(fetchUsd('2026-09-16', { apiKey: 'test', fetchImpl: async () => new Response('', { status: 429 }) }), { code: 'quota_exceeded' });
+});

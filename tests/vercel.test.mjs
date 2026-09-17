@@ -30,3 +30,12 @@ test('공개 장애 재생 화면은 실패 선택과 다시 시도 동작을 �
   assert.match(script, /run\('recover'\)/);
   assert.match(script, /\/api\/replay\?scenario=/);
 });
+
+test('실제 정보판과 합성 재생 화면은 같은 실패 안내 정의를 사용한다', async () => {
+  const main = await readFile(new URL('../public/app.js', import.meta.url), 'utf8');
+  const replay = await readFile(new URL('../public/replay-ui.js', import.meta.url), 'utf8');
+  const copy = await readFile(new URL('../public/status-copy.js', import.meta.url), 'utf8');
+  assert.match(main, /FAILURE_PRESENTATION/);
+  assert.match(replay, /FAILURE_PRESENTATION/);
+  for (const code of ['timeout', 'auth', 'rate_limit', 'offline', 'schema_error']) assert.match(copy, new RegExp(`${code}:`));
+});

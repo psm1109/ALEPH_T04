@@ -13,7 +13,7 @@ export function parseRate(value) {
   }
   const rate = Number(value.replaceAll(',', ''));
   if (!Number.isFinite(rate) || rate <= 0 || rate > 99999999) {
-    throw new RateError('invalid_data', '유효한 매매기준율이 아니어서 표시하지 않았어요.');
+    throw new RateError('invalid_data', '유효한 기준환율이 아니어서 표시하지 않았어요.');
   }
   return rate;
 }
@@ -42,7 +42,10 @@ export async function fetchUsd(date = koreanDate(), { apiKey = process.env.api_k
   url.search = new URLSearchParams({ authkey: apiKey, searchdate: date.replaceAll('-', ''), data: 'AP01' });
   try {
     const response = await fetchImpl(url, { signal: AbortSignal.timeout(10000), headers: { Accept: 'application/json' }, cache: 'no-store' });
-    if (!response.ok) throw new RateError('upstream_error', `출처 API가 HTTP ${response.status}로 응답했어요.`);
+    if (!response.ok) {
+      const code = [401, 403].includes(response.status) ? 'auth_error' : response.status === 429 ? 'quota_exceeded' : 'upstream_error';
+      throw new RateError(code, `출처 API가 HTTP ${response.status}로 응답했어요.`);
+    }
     let payload;
     try { payload = await response.json(); }
     catch { throw new RateError('invalid_data', '출처에서 JSON 데이터를 받지 못했어요.'); }

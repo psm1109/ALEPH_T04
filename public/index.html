@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#ffffff">
-  <meta name="description" content="한국수출입은행 미국 달러 매매기준율을 매일 기록하고 어제와 비교하는 환율 정보판">
+  <meta name="description" content="한국수출입은행 미국 달러 기준환율을 매일 기록하고 어제와 비교하는 환율 정보판">
   <title>달러노트 · 하루 한 번, 달러의 기록</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/style.css">
@@ -30,7 +30,7 @@
         <article class="card rate-card" aria-labelledby="currency-title" aria-busy="true" id="rate-card">
           <div class="card-top"><div class="currency-label"><svg class="flag" viewBox="0 0 40 40" aria-hidden="true"><defs><clipPath id="flag-circle"><circle cx="20" cy="20" r="20"/></clipPath></defs><g clip-path="url(#flag-circle)"><path fill="#fff" d="M0 0h40v40H0z"/><path stroke="#e35365" stroke-width="3" d="M0 3h40M0 9h40M0 15h40M0 21h40M0 27h40M0 33h40M0 39h40"/><path fill="#42699c" d="M0 0h21v22H0z"/><path fill="#fff" d="M4 4h2v2H4zM10 4h2v2h-2zM16 4h2v2h-2zM7 9h2v2H7zM13 9h2v2h-2zM4 14h2v2H4zM10 14h2v2h-2zM16 14h2v2h-2zM7 19h2v2H7zM13 19h2v2h-2z"/></g></svg><h2 id="currency-title">미국 달러 <span>USD</span></h2></div><span id="data-badge" class="badge neutral">조회 중</span></div>
           <div class="rate-value"><span id="rate-number" class="loading-number">—</span><span class="won">원</span></div>
-          <p class="rate-unit">1 USD 기준 <span>·</span> 매매기준율</p>
+          <p class="rate-unit">1 USD 기준 <span>·</span> 기준환율</p>
           <div class="comparison-block"><p id="comparison" class="comparison muted">오늘의 데이터를 확인하고 있어요</p><p id="comparison-detail" class="comparison-detail">출처 API와 저장된 기록을 조회합니다.</p></div>
           <div class="rate-bottom"><span id="rate-date">기준일 확인 중</span><span class="daily-label"><span class="tiny-dot"></span>일별 고시 환율</span></div>
         </article>
@@ -48,16 +48,16 @@
         </aside>
       </div>
       <div class="disclosure-note"><span class="note-icon" aria-hidden="true">i</span><p>본 정보판은 한국수출입은행 Open API를 통해 데이터를 가져옵니다. 이 환율은 실시간 환율이 아니며, <strong>당일 오전 11시경 고시된 하루 한 번의 기준 가격</strong>입니다. 따라서 시간 시세와는 차이가 발생할 수 있습니다.</p></div>
-      <section id="status-notice" class="status-notice" role="status" hidden><span class="status-icon" aria-hidden="true">i</span><div><h2 id="status-title"></h2><p id="status-description"></p><p id="status-detail" class="status-detail"></p></div></section>
+      <section id="status-notice" class="status-notice" role="status" hidden><span class="status-icon" aria-hidden="true">i</span><div class="status-content"><h2 id="status-title"></h2><p id="status-description"></p><p id="status-detail" class="status-detail"></p><button type="button" id="status-action" class="status-action" hidden>다시 조회</button></div></section>
     </section>
     <section class="card chart-card" aria-labelledby="chart-title">
       <div class="section-heading"><div><h2 id="chart-title">매일 쌓이는 환율 기록</h2><p id="chart-subtitle">단위: 원 / 1 USD</p></div><div class="segmented" role="group" aria-label="차트 조회 기간"><button type="button" data-period="7" aria-pressed="true" class="selected">7일</button><button type="button" data-period="30" aria-pressed="false">30일</button></div></div>
       <div id="chart" class="chart-container" aria-live="polite"><div class="chart-empty"><span class="empty-chart-icon" aria-hidden="true">↗</span><p>환율 기록을 불러오고 있어요</p></div></div>
-      <div class="chart-footer"><span><span class="legend-dot"></span>미국 달러 매매기준율</span><span id="chart-summary">데이터가 없는 날짜는 연결하지 않습니다.</span></div>
+      <div class="chart-footer"><span><span class="legend-dot"></span>미국 달러 기준환율</span><span id="chart-summary">데이터가 없는 날짜는 연결하지 않습니다.</span></div>
     </section>
     <section class="card history-card" id="history" aria-labelledby="history-title">
       <div class="section-heading"><div class="history-heading"><h2 id="history-title">최근 기록</h2><span class="count-chip" id="record-count">0건</span></div><button type="button" class="text-button" id="toggle-history" hidden>전체 기록 <span aria-hidden="true">↗</span></button></div>
-      <div class="table-scroll"><table><caption class="sr-only">기준일별 미국 달러 매매기준율 및 바로 전날 대비 변동</caption><thead><tr><th scope="col">기준일</th><th scope="col">매매기준율</th><th scope="col">전일 대비</th><th scope="col">수집 상태</th></tr></thead><tbody id="history-body"><tr><td colspan="4" class="table-empty">기록을 불러오고 있어요.</td></tr></tbody></table></div>
+      <div class="table-scroll"><table><caption class="sr-only">기준일별 미국 달러 기준환율 및 바로 전날 대비 변동</caption><thead><tr><th scope="col">기준일</th><th scope="col">기준환율</th><th scope="col">전일 대비</th><th scope="col">수집 상태</th></tr></thead><tbody id="history-body"><tr><td colspan="4" class="table-empty">기록을 불러오고 있어요.</td></tr></tbody></table></div>
       <p class="table-note">전일 대비는 바로 전날의 기록이 있을 때만 표시해요.</p>
     </section>
     <details class="verification card" id="verification" hidden><summary><span><span class="verification-icon" aria-hidden="true">✓</span>데이터 확인 <span class="verification-hint">원자료부터 화면까지</span></span><span aria-hidden="true">⌄</span></summary><div class="verification-content"><p id="verification-description"></p><div class="verification-grid"><div><span>원자료 · deal_bas_r</span><strong id="raw-rate">—</strong></div><div><span>Supabase 저장값</span><strong id="stored-rate">—</strong></div><div><span>화면 표시값</span><strong id="displayed-rate">—</strong></div></div><details class="raw-details"><summary>미국 달러 원자료 보기</summary><pre id="raw-json"></pre></details></div></details>

@@ -1,12 +1,6 @@
+import { FAILURE_PRESENTATION } from './status-copy.js';
+
 const $ = (id) => document.getElementById(id);
-const messages = {
-  none: ['정상 상태로 회복했어요', '합성 다음 날짜가 저장되고 오류 상태가 해제됐습니다.'],
-  timeout: ['출처 응답 시간이 초과됐어요', '마지막 정상값을 유지하며 시간 초과 상태를 별도로 표시합니다.'],
-  auth: ['출처가 요청을 거절했어요', '외부 원천의 합성 401 응답입니다. 사이트 로그인 오류가 아닙니다.'],
-  rate_limit: ['출처 호출 제한에 도달했어요', '마지막 정상값을 유지하고 합성 호출 제한 상태를 표시합니다.'],
-  offline: ['출처에 연결할 수 없어요', '합성 오프라인 상태이며 확인되지 않은 값을 새로 만들지 않습니다.'],
-  schema_error: ['출처 응답 형식이 달라졌어요', '필수 값의 자료형이 바뀌어 마지막 정상값을 유지합니다.'],
-};
 
 function render(data) {
   const { status, records } = data;
@@ -23,10 +17,11 @@ function render(data) {
   const badge = $('replay-badge');
   badge.className = `badge ${status.freshness === 'fresh' ? '' : 'warning'}`;
   badge.textContent = status.freshness === 'fresh' ? 'fresh · 정상' : 'stale · 오래된 값';
-  const [title, description] = messages[status.error_code];
-  $('notice-title').textContent = title;
-  $('notice-description').textContent = description;
-  $('notice-detail').textContent = `${data.sequence.join(' → ')} · 운영 데이터 변경 없음`;
+  const presentation = FAILURE_PRESENTATION[status.error_code];
+  $('notice-title').textContent = presentation?.title || '정상 상태로 회복했어요';
+  $('notice-description').textContent = presentation?.description || '합성 다음 날짜가 저장되고 오류 상태가 해제됐습니다.';
+  $('notice-detail').textContent = `${presentation?.action || '새 정상값과 전일 대비를 확인할 수 있습니다.'} ${data.sequence.join(' → ')} · 운영 데이터 변경 없음`;
+  if (presentation) $('retry').textContent = presentation.button;
   $('failure-notice').classList.toggle('recovered', status.freshness === 'fresh');
   $('retry').hidden = !data.retry_available;
   const rows = $('replay-rows');

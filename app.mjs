@@ -11,6 +11,11 @@ const ERROR_TEXT = {
   configuration_error: '한국수출입은행 API 인증키가 설정되지 않았어요.',
 };
 
+const STANDARD_ERROR = Object.freeze({
+  timeout: 'timeout', auth_error: 'auth', quota_exceeded: 'rate_limit',
+  network_error: 'offline', invalid_data: 'schema_error',
+});
+
 export function createApp({ env = process.env, fetchImpl = fetch, now = () => new Date(), storageFactory = createStorage } = {}) {
   let liveCache;
   let livePending;
@@ -74,11 +79,16 @@ export function createApp({ env = process.env, fetchImpl = fetch, now = () => ne
     const previous = snapshot.records.find((row) => row.date === shiftDate(today, -1));
     const attempt = snapshot.attempt;
     const issue = storageIssue || (attempt?.status === 'error' ? ERROR_TEXT[attempt.error_code] || '오늘 데이터를 수집하지 못했어요.' : null);
+    const standardError = attempt?.status === 'error' ? STANDARD_ERROR[attempt.error_code] || null : null;
     return {
       today, yesterday: shiftDate(today, -1), queriedAt: now().toISOString(),
       source: { name: SOURCE_NAME, url: SOURCE_URL }, timeZone: TIME_ZONE, unit: '원 / 1 USD',
       latest, records: snapshot.records, comparison: compareRates(current, previous),
       attempt, issue, previousError: snapshot.previousError ?? null,
+      status: {
+        freshness: current ? 'fresh' : latest ? 'stale' : 'unavailable',
+        error_code: current ? 'none' : standardError,
+      },
       storage: { configured: Boolean(storage), available: Boolean(storage) && !storageIssue, issue: storageIssue },
     };
   }

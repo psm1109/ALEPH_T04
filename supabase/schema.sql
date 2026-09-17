@@ -94,7 +94,7 @@ revoke all on function public.finish_exchange_fetch(date, uuid, text, jsonb, tim
 grant execute on function public.claim_exchange_fetch(date) to service_role;
 grant execute on function public.finish_exchange_fetch(date, uuid, text, jsonb, timestamptz, text) to service_role;
 
-comment on column public.exchange_rates.rate is '원자료 deal_bas_r에서 자동 생성한 원/1USD 매매기준율';
+comment on column public.exchange_rates.rate is '원자료 deal_bas_r에서 자동 생성한 원/1USD 기준환율';
 comment on column public.exchange_rates.rate_date is 'API searchdate로 조회한 기준일. Asia/Seoul';
 comment on column public.exchange_rates.source_published_at is 'API 미제공: NULL 유지. 11시를 임의의 실제 고시 시각으로 저장하지 않음';
 commit;

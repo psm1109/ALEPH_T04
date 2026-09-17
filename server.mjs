@@ -8,6 +8,7 @@ const files = {
   '/': ['index.html', 'text/html; charset=utf-8'],
   '/app.js': ['app.js', 'text/javascript; charset=utf-8'],
   '/format.js': ['format.js', 'text/javascript; charset=utf-8'],
+  '/status-copy.js': ['status-copy.js', 'text/javascript; charset=utf-8'],
   '/style.css': ['style.css', 'text/css; charset=utf-8'],
   '/replay': ['replay.html', 'text/html; charset=utf-8'],
   '/replay.html': ['replay.html', 'text/html; charset=utf-8'],
