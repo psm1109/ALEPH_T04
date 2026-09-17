@@ -1,139 +1,210 @@
 # 달러노트
 
-한국수출입은행 Open API의 미국 달러 을 Supabase에 일별로 기록하고, 바로 어제의 값과 비교하는 정보판입니다. 흰색·파란색 반응형 화면, 7일/30일 차트, 일별 기록, 데이터 검증 영역을 제공합니다.
+한국수출입은행 Open API의 미국 달러 기준환율을 매일 저장하고, 한국 시간 기준 바로 전날의 기록과 비교하는 공개 정보판입니다.
 
-## 실행
+주요 기능:
 
-Node.js 24를 사용합니다. 외부 npm 의존성이나 별도 빌드 과정은 없습니다.
+- 실제 공개 원천의 USD 기준환율 조회
+- Supabase 날짜별 원자료 및 출처 메타데이터 저장
+- 오늘과 바로 전날의 환율 변화 계산
+- 최근 7일·30일 차트와 일별 기록 표시
+- 원자료·저장값·화면값 일치 확인
+- 공개 합성 fixture를 이용한 장애·보존·회복 재생
+- Vercel Cron을 이용한 매일 정오 KST 자동 수집
+
+## 빠른 시작
+
+Node.js 24를 사용하며 외부 npm 패키지나 별도 빌드 과정은 없습니다.
 
 ```sh
 node --env-file-if-exists=.env server.mjs
 ```
 
-http://localhost:3000 에서 확인합니다. npm이 설치된 환경에서는 `npm run dev` 또는 `npm start`도 사용할 수 있습니다. `npm run dev`는 서버 파일 변경 시 재시작합니다. 화면 파일 변경 후에는 브라우저를 새로고침하세요.
+- 실제 정보판: `http://localhost:3000`
+- 합성 장애 재생: `http://localhost:3000/replay`
+
+npm을 사용할 수 있다면 `npm run dev` 또는 `npm start`도 지원합니다.
+
+## 환경변수
+
+`.env.example`을 참고해 프로젝트 루트에 `.env`를 만듭니다.
+
+| 이름 | 용도 |
+| --- | --- |
+| `api_key` | 한국수출입은행 Open API 인증키 |
+| `SUPABASE_URL` | Supabase 프로젝트 URL |
+| `SUPABASE_SECRET_KEY` | 서버 전용 Supabase Secret key |
+| `CRON_SECRET` | Vercel Cron 수집 API 인증 |
+| `PORT` | 로컬 서버 포트, 기본값 `3000` |
+
+키 값은 브라우저 코드, 네트워크 응답, Git 기록, 문서에 포함하지 않습니다. `.env`는 Git에서 제외되어 있습니다.
 
 ## Supabase 설정
 
-1. Supabase 프로젝트의 SQL Editor에서 [`supabase/schema.sql`](supabase/schema.sql) 전체를 실행합니다.
-2. Project Settings에서 프로젝트 URL과 서버용 Secret key를 찾아 `.env`에 등록합니다. 예시는 [`.env.example`](.env.example)에 있습니다.
-3. 첫 조회 시 오늘 정상 데이터가 있으면 자동으로 저장합니다. 과거 기록도 불러오려면 아래 명령을 실행합니다.
+Supabase SQL Editor에서 [`supabase/schema.sql`](supabase/schema.sql)을 전체 실행합니다. 이미 테이블이 있어도 기존 기록을 삭제하지 않고 필요한 컬럼과 함수를 보완합니다.
+
+### 저장 정보
+
+`exchange_rates`는 날짜별로 다음 정보를 보존합니다.
+
+| 필드 | 의미 |
+| --- | --- |
+| `rate_date` | `Asia/Seoul` 기준 환율 날짜 |
+| `raw_response` | 공개 원천의 실제 USD 응답 |
+| `rate` | `deal_bas_r`에서 DB가 계산한 숫자 |
+| `fetched_at` | API 응답 수신 시각 |
+| `source_observed_at` | 공개 원천을 실제로 관측한 시각 |
+| `source_published_at` | 원천 발표 시각, API 미제공으로 `NULL` |
+| `source_name` | 한국수출입은행 |
+| `source_url` | 실제 Open API 주소 |
+| `unit` | `원 / 1 USD` |
+
+`exchange_fetch_runs`는 날짜별 마지막 수집 결과를 `pending`, `success`, `no_data`, `error`로 기록합니다.
+
+서버가 DB 값을 읽을 때 원자료·환율·통화·출처 URL·관측 시각·단위가 일치하는지 다시 검사합니다. 일치하지 않는 값은 화면에 전달하지 않습니다.
+
+### 과거 실제 데이터 적재
 
 ```sh
 node --env-file=.env scripts/backfill.mjs --days=7
 ```
 
-`--days=1`~`--days=30`을 지원합니다. 실제 API 응답만 저장하며 기존 날짜는 덮어쓰지 않습니다. 휴일 등 빈 응답에는 환율을 만들지 않습니다. 과거 적재는 관리자 CLI에서만 가능하며 공개 API에서 날짜를 임의로 지정할 수 없습니다.
+`--days=1`부터 `--days=30`까지 지원합니다. 실제 API 응답만 저장하고 기존 날짜는 덮어쓰지 않으며, 빈 응답에는 임의의 환율을 만들지 않습니다.
 
-### 생성하는 테이블과 함수
+## 데이터 처리 원칙
 
-| 대상 | 역할 |
-| --- | --- |
-| `exchange_rates` | 날짜당 USD 한 건, 원자료 JSON, 자동 계산한 환율, 출처 URL·관측 시각·단위 |
-| `exchange_fetch_runs` | 날짜별 마지막 수집 결과: `pending`, `success`, `no_data`, `error` |
-| `claim_exchange_fetch(date)` | 성공 날짜 중복 수집 방지 및 실패/미수신의 10분 재시도 간격 |
-| `finish_exchange_fetch(...)` | 정상 원자료 저장과 수집 결과 갱신을 하나의 트랜잭션으로 수행 |
+- 요청 주소는 `https://oapi.koreaexim.go.kr/site/program/financial/exchangeJSON`입니다.
+- 요청에는 `authkey`, `searchdate=yyyymmdd`, `data=AP01`을 사용합니다.
+- `result=1`, `cur_unit=USD`, 공백 제거 후 `cur_nm=미국달러`인 항목 한 건만 선택합니다.
+- 표시값은 `deal_bas_r`, 단위는 `원 / 1 USD`입니다.
+- 날짜 계산과 표시는 `Asia/Seoul`을 기준으로 합니다.
+- 원천이 정확한 발표 시각을 제공하지 않으므로 출처 시각을 임의로 만들지 않습니다.
+- 오늘과 바로 전날 기록이 모두 있을 때만 전일 대비를 계산합니다.
+- 이전 영업일을 어제 기록으로 대신 사용하지 않습니다.
+- 실패나 빈 응답은 마지막 정상값을 삭제하거나 덮어쓰지 않습니다.
+- 저장되지 않은 실조회값은 화면에서 `미저장`으로 구분합니다.
+- 차트는 데이터가 없는 날짜를 선으로 연결하지 않습니다.
 
-`rate`는 `raw_response.deal_bas_r`에서 생성되는 `numeric(12,2)` 컬럼입니다. 앱이 별도 숫자를 잘못 저장할 수 없으며, 서버가 DB에서 다시 읽을 때도 원자료뿐 아니라 출처 URL·원천 관측 시각·단위의 일치를 검사합니다. `source_observed_at`은 원천 응답을 실제로 수신한 시각이고, 원천이 별도 발표 시각을 제공하지 않으므로 `source_published_at`은 `NULL`로 유지합니다. RLS를 활성화하고 `anon`/`authenticated` 역할의 접근을 차단했습니다. 서버용 키로만 접근하며 브라우저에 Supabase 키가 전달되지 않습니다.
+## 자동 수집
 
-## Vercel 배포
+[`vercel.json`](vercel.json)의 Cron은 매일 UTC 03:00, 한국 시간 정오 12:00에 Production의 `/api/collect`를 호출합니다.
 
-1. 이 폴더의 저장소를 Vercel 프로젝트로 연결합니다. **Framework Preset: Other**, **Root Directory: 이 프로젝트 루트**, **Node.js: 24.x**로 설정합니다.
-2. `vercel.json`에 설정된 대로 **Output Directory는 `public`**, **Build Command는 비워 둡니다**. 별도의 `server.mjs` 시작 명령을 Vercel에 설정하지 않습니다.
-3. Settings → Environment Variables에 아래 네 항목을 등록합니다. 최소한 **Production**에 등록해야 하며 Preview에서 확인하려면 Preview에도 등록합니다.
-4. 배포 후 홈페이지를 열어 저장값 표시를 확인합니다. 환경변수를 바꾸면 재배포합니다.
-
-| 변수 이름 | 등록할 값 | 용도 |
-| --- | --- | --- |
-| `api_key` | 기존 `.env`의 한국수출입은행 인증키 | 이름은 소문자 그대로 사용 |
-| `SUPABASE_URL` | `https://프로젝트ID.supabase.co` 형식의 Project URL | 데이터 API 접속 주소 |
-| `SUPABASE_SECRET_KEY` | Supabase Secret key (`sb_secret_...`) | 서버 전용 DB 접근 |
-| `CRON_SECRET` | 충분히 긴 무작위 문자열 | 자동 수집 API 인증 |
-
-변수 이름에 `NEXT_PUBLIC_`/`VITE_`를 붙이지 마세요. 키 값은 코드, 채팅, 커밋에 포함하지 않습니다. 구형 키가 필요한 프로젝트는 `SUPABASE_SERVICE_ROLE_KEY`도 지원하지만 신규 설정은 Secret key를 권장합니다. `PORT`는 로컬 전용이며 Vercel에는 필요 없습니다.
-
-`CRON_SECRET`은 로컬 `.env`에 생성된 값을 Vercel에 동일하게 등록하면 됩니다. 아직 없다면 다음 명령으로 생성할 수 있습니다. 터미널에 출력되는 값은 공개하지 마세요.
-
-```sh
-node --input-type=module -e "import { randomBytes } from 'node:crypto'; console.log(randomBytes(32).toString('hex'))"
+```text
+0 3 * * *
 ```
 
-### 자동 기록 시간
+Vercel Hobby에서는 실제 실행이 12:00~12:59 KST 사이일 수 있습니다.
 
-`vercel.json`의 `0 3 * * *`는 **매일 UTC 03:00 / 한국 시간 정오 12:00**입니다. Vercel Cron은 Production 배포에서 `/api/collect`를 호출하고 `CRON_SECRET`을 Bearer 토큰으로 전송합니다. API는 인증이 없으면 거부합니다.
+- `/api/collect`는 `CRON_SECRET` Bearer 인증을 요구합니다.
+- 정상 저장된 날짜는 다시 수집하지 않습니다.
+- 실패 또는 빈 응답은 최소 10분 간격으로 다시 시도할 수 있습니다.
+- 화면 방문 시 오늘 기록이 없으면 수집을 시도합니다.
+- Cron은 로컬 서버에서는 자동 실행되지 않습니다.
 
-Vercel Hobby의 실행 정밀도는 시간 단위이므로 실제 실행은 **12:00~12:59 KST** 사이일 수 있습니다. 정확히 12시에 실행된다고 보장하지 않습니다. [Vercel Cron 사용량 및 실행 정밀도](https://vercel.com/docs/cron-jobs/usage-and-pricing), [Cron 인증 설정](https://vercel.com/docs/cron-jobs/manage-cron-jobs).
-
-- 정상 저장된 날짜는 중복 수집하거나 덮어쓰지 않습니다.
-- 오늘 기록이 없으면 화면 조회 시에도 수집을 시도합니다. DB 잠금으로 전체 인스턴스에서 날짜당 10분에 한 번만 시도할 수 있습니다.
-- 실패/빈 응답 시 다음 방문 또는 Cron 실행에서 재시도합니다. 방문자가 없고 정오 Cron도 실패한 날은 자동 재시도나 과거 보충을 보장하지 않습니다. 필요하면 `backfill`을 실행하세요.
-- Vercel Cron은 로컬에서 실행되지 않습니다. 수동 실행은 Vercel Cron 화면의 Run 또는 아래 명령을 사용합니다.
+수동 호출 예시:
 
 ```sh
-# 배포 주소로 변경. 인증키는 명령문에 직접 쓰지 않고 .env에서 읽습니다.
 node --env-file=.env --input-type=module -e "const r=await fetch('https://YOUR-PROJECT.vercel.app/api/collect',{headers:{Authorization:'Bearer '+process.env.CRON_SECRET}}); console.log(r.status,await r.text())"
 ```
 
-## 표시 원칙
+## 합성 장애 재생
 
-- 요청: `https://oapi.koreaexim.go.kr/site/program/financial/exchangeJSON`
-- Query: `authkey=api_key`, `searchdate=yyyymmdd`, `data=AP01`.
-- `result=1`, `cur_unit=USD`, 공백을 제거한 `cur_nm=미국달러`인 정확히 한 건만 선택합니다.
-- 표시값은 **기준환율 `deal_bas_r`**, 단위는 **원 / 1 USD**입니다. 쉼표와 소수점 두 자리 표시는 숫자의 의미를 바꾸지 않습니다.
-- **기준일**: 요청한 `searchdate`. **출처 시각**: API에서 제공하지 않으므로 `NULL` / “제공되지 않음”. **API 수신 시각**: 실제 응답 수신 시각. **화면 조회 시각**: 서버가 화면 요청에 응답한 시각. 모두 `Asia/Seoul (UTC+9)`로 표시합니다.
-- 오전 11시 안내 문구는 화면에 포함하지만 이를 실제 수신된 출처 시각으로 만들어 저장하지 않습니다.
-- 비교는 **한국 시간 기준 오늘과 바로 어제**의 기록이 모두 있을 때만 합니다. 이전 영업일을 어제라고 표시하지 않습니다.
-- 빈 응답, 인증 실패, 한도 초과, 네트워크 오류, DB 오류를 구분합니다. 휴일/고시 지연 등의 구체적 원인은 API가 주지 않으므로 추정임을 밝힙니다.
-- 오늘 데이터가 없으면 실제 기준일을 명시한 최근 저장값을 표시합니다. 과거값을 오늘 값으로 복제하지 않고 차트의 결측일은 선으로 연결하지 않습니다.
-- Supabase 미연결/장애 시 API 직접 조회값은 **미저장**으로 표시합니다. 이때 직접 조회는 오늘과 어제만 수행하며 10분간 프로세스 메모리에서 재사용합니다. 영구 기록이 아니며 서버리스 인스턴스 간 캐시 공유도 보장하지 않습니다.
-- 저장 기록은 API에서 최신 최대 60건을 읽고, 차트는 선택한 7/30 **달력일**을 표시합니다.
+`/replay` 화면에서는 공개 fixture로 다음 장애를 재생할 수 있습니다.
 
-요청하신 안내 문구는 메인 환율 카드 바로 아래에 있습니다.
+- 응답 시간 초과
+- 외부 원천 인증 거절
+- 호출 제한
+- 오프라인
+- 응답 형식 변경
 
-> 본 정보판은 한국수출입은행 Open API를 통해 데이터를 가져옵니다. 이 환율은 실시간 환율이 아니며, **당일 오전 11시경 고시된 하루 한 번의 기준 가격**입니다. 따라서 시간 시세와는 차이가 발생할 수 있습니다.
+합성 재생은 운영 Supabase, 실제 API, `.env`를 사용하지 않습니다. 각 요청은 독립된 메모리 상태에서 계산되므로 여러 사용자의 실행이 서로 영향을 주지 않습니다.
 
-## 검증
+실패 상태에서는 마지막 정상값 105와 기존 일별 기록 한 건을 유지합니다. 다시 조회하면 회복 fixture를 재생해 `fresh / none`, 값 120, 일별 기록 두 건, 전일 대비 15를 확인할 수 있습니다.
+
+CLI에서도 같은 검사를 실행할 수 있습니다.
 
 ```sh
-node --test --test-isolation=none tests/*.test.mjs
 node scripts/replay-fixtures.mjs
-node scripts/verify-public-package.mjs "공개 package 폴더 경로"
-node --env-file=.env scripts/verify-live.mjs
-```
-
-첫 명령은 외부 연결 없는 전체 테스트입니다. 정상/미수신/오류, 전일 비교, 한국 자정, 동시 수집, DB 실패, 인증키 비노출, Cron 인증과 공개 fixture 상태 전이를 검증합니다. 둘째 명령은 C26의 다섯 합성 실패 fixture를 각각 초기 상태에서 재생합니다. 특정 fixture만 확인하려면 ID를 인자로 전달합니다.
-
-```sh
 node scripts/replay-fixtures.mjs T04-TIMEOUT
 ```
 
-fixture replay는 `fixtures/`의 공개 합성 JSON과 프로세스 메모리만 사용합니다. `.env`, 실제 한국수출입은행 API, 운영 Supabase에는 접근하지 않으므로 reset과 실패 재생이 실제 환율 기록을 변경하지 않습니다. 셋째 명령은 실제 연결을 사용해 정상 한 건의 원자료·DB 재조회값·화면용 API값을 비교합니다. 오늘 기록이 없으면 실제 수집을 수행할 수 있습니다.
+## 검증
 
-공개 package 검증 명령은 `public-contract.json`과 `asset-manifest.json`의 package ID, 공개 파일 17개의 크기·SHA-256, fixture 9개의 canonical hash, 프로젝트에 포함된 fixture 내용까지 대조합니다. 하나라도 다르면 실패 종료 코드 1을 반환합니다.
+### 전체 자동 테스트
 
-배포된 사이트의 `/replay`에서는 다섯 실패 fixture를 직접 선택할 수 있습니다. 각 요청은 D1-A와 D1-B부터 전체 시퀀스를 새로 계산하는 무상태 방식이며, 실패 시 `stale`과 표준 `error_code`, 마지막 정상값 105, 일별 행 1건을 표시합니다. **다시 시도하여 회복 재생**을 누르면 TIMEOUT 뒤 RECOVER-D2 시퀀스를 계산해 `fresh / none`, 값 120, 행 2건, 전일 대비 15를 표시합니다. 이 공개 화면과 `/api/replay`도 운영 DB를 변경하지 않습니다.
-
-DB에서 직접 확인할 SQL은 [`supabase/verify.sql`](supabase/verify.sql)입니다. 화면 하단 **데이터 확인**을 펼치면 원자료·저장값·화면값과 미국 달러 원본 JSON을 함께 확인할 수 있습니다.
-
-## 파일 구성
-
-```text
-public/                 정적 화면, 스타일, 차트 및 표시 로직
-api/[action].js         Vercel 서버리스 함수 진입점
-app.mjs                 조회/수집 API와 인증, 재시도 정책
-rates.mjs               한국수출입은행 API 및 USD 검증
-storage.mjs             서버 전용 Supabase REST/RPC 접근
-server.mjs              로컬 개발 서버 (공개 파일만 명시적으로 제공)
-supabase/schema.sql     DB 테이블/권한/수집 함수
-supabase/verify.sql     정상 한 건과 수집 상태 확인 SQL
-scripts/backfill.mjs    실제 과거 데이터 초기 적재
-scripts/replay-fixtures.mjs 공개 합성 fixture 재생 CLI
-scripts/verify-public-package.mjs 공개 package ID·hash·fixture 대조
-scripts/verify-live.mjs 실제 저장값 검증
-fixtures/               T04 공개 합성 fixture 9종
-replay.mjs              합성 전용 정규화·저장·오류 상태 전이
-replay-service.mjs      무상태 합성 시나리오 API 서비스
-tests/                  데이터 및 서버 동작 테스트
-vercel.json             정적 파일, 서버리스 함수, Cron 설정
+```sh
+node --test --test-isolation=none tests/*.test.mjs
 ```
 
-API 키를 조회 URL이나 오류 메시지로 로그에 남기지 않으며 `.env`는 Git에서 제외됩니다. [Supabase API 키 안내](https://supabase.com/docs/guides/getting-started/api-keys).
+외부 연결 없이 정상 수집, 실패 보존, 날짜 계산, 동시 수집, DB 오류, Cron 인증, fixture 상태 전이를 검사합니다.
+
+### 실제 원자료·저장값·화면값 확인
+
+```sh
+node --env-file=.env scripts/verify-live.mjs
+```
+
+실제 기록 한 건의 원자료, 저장값, 출처 URL, 관측 시각, 단위, 화면용 API 값을 비교합니다. 오늘 기록이 없으면 실제 수집이 발생할 수 있습니다. DB에서 직접 확인하려면 [`supabase/verify.sql`](supabase/verify.sql)을 사용합니다.
+
+### 공개 package 무결성 확인
+
+```sh
+node scripts/verify-public-package.mjs "공개 package 폴더 경로"
+```
+
+다음 항목을 검사합니다.
+
+- 공개 package ID와 계약 버전
+- 조건 개수와 fixture 개수
+- 공개 파일의 크기와 SHA-256
+- fixture canonical SHA-256
+- 프로젝트 fixture와 공개 정본의 내용 일치
+
+하나라도 다르면 종료 코드 1을 반환합니다.
+
+## 짧은 확인 방법
+
+1. 배포된 결과물의 `/replay`로 이동합니다.
+2. 장애 종류를 선택하고 마지막 정상값과 오류별 안내를 확인한 뒤 `다시 조회`를 누릅니다.
+3. 실패 시 `stale`, 마지막 값 105, 행 1건이 보이고 회복 후 `fresh / none`, 값 120, 행 2건, 변화 15가 보이면 통과입니다.
+
+안 될 때는 오류 상태 대신 API 연결 실패 안내가 표시됩니다. `/api/replay?scenario=baseline` 응답과 Vercel 함수 로그를 확인합니다.
+
+## Vercel 배포
+
+1. 저장소를 Vercel 프로젝트에 연결합니다.
+2. Framework Preset은 `Other`, Root Directory는 프로젝트 루트로 지정합니다.
+3. Build Command는 비우고 Output Directory는 `public`으로 설정합니다.
+4. Node.js 24와 필요한 환경변수를 Production에 등록합니다.
+5. Supabase에서 최신 `supabase/schema.sql`을 실행합니다.
+6. 배포 후 `/`, `/replay`, `/api/dashboard`, `/api/replay?scenario=baseline`을 확인합니다.
+
+환경변수를 변경하거나 SQL 구조를 바꾼 경우 재배포와 DB 적용을 각각 확인해야 합니다.
+
+## 프로젝트 구조
+
+```text
+api/[action].js                   Vercel 서버리스 진입점
+app.mjs                           대시보드·수집·재생 API 라우팅
+rates.mjs                         한국수출입은행 조회 및 USD 검증
+storage.mjs                       Supabase 접근과 저장값 재검증
+replay.mjs                        합성 상태 전이
+replay-service.mjs                무상태 재생 시나리오
+public/                            실제 정보판과 장애 재생 화면
+fixtures/                          공개 합성 fixture 9종
+supabase/schema.sql               DB 스키마·권한·수집 함수
+supabase/verify.sql               저장값 확인 SQL
+scripts/backfill.mjs              과거 실제 데이터 적재
+scripts/replay-fixtures.mjs       합성 실패 CLI 검사
+scripts/verify-live.mjs           실제 저장값 검사
+scripts/verify-public-package.mjs 공개 package 무결성 검사
+tests/                             자동 테스트
+vercel.json                       배포·Cron·보안 헤더 설정
+```
+
+## 보안
+
+- `.env`와 실제 비밀값은 Git에 포함하지 않습니다.
+- 브라우저에는 Supabase Secret key와 외부 API 인증키를 전달하지 않습니다.
+- RLS를 활성화하고 `anon`, `authenticated` 역할의 테이블 접근을 차단합니다.
+- 인증키가 포함된 외부 요청 URL과 Supabase 오류 본문을 사용자 응답에 노출하지 않습니다.
