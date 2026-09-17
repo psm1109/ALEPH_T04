@@ -1,4 +1,4 @@
-import { RateError, parseRate } from './rates.mjs';
+import { RateError, parseRate, SOURCE_NAME, SOURCE_URL, SOURCE_UNIT } from './rates.mjs';
 
 export function createStorage(env = process.env, fetchImpl = fetch) {
   const url = env.SUPABASE_URL?.replace(/\/$/, '');
@@ -30,6 +30,8 @@ export function createStorage(env = process.env, fetchImpl = fetch) {
     async importHistory(record) {
       const rows = await request('exchange_rates?on_conflict=rate_date', {
         rate_date: record.date, raw_response: record.raw, fetched_at: record.fetchedAt,
+        source_observed_at: record.sourceObservedAt, source_name: record.sourceName,
+        source_url: record.sourceUrl, unit: record.unit,
       }, { Prefer: 'resolution=ignore-duplicates,return=representation' });
       return rows.length > 0;
     },
@@ -40,10 +42,17 @@ export function createStorage(env = process.env, fetchImpl = fetch) {
       ]);
       const records = rows.map((row) => {
         const rate = Number(row.rate);
-        if (rate !== parseRate(row.raw_response?.deal_bas_r) || row.raw_response?.cur_unit !== 'USD') {
+        if (rate !== parseRate(row.raw_response?.deal_bas_r) || row.raw_response?.cur_unit !== 'USD'
+          || row.source_name !== SOURCE_NAME || row.source_url !== SOURCE_URL || row.unit !== SOURCE_UNIT
+          || new Date(row.source_observed_at).getTime() !== new Date(row.fetched_at).getTime()) {
           throw new RateError('storage_error', '저장된 환율과 원자료가 일치하지 않아 표시하지 않았어요.');
         }
-        return { date: row.rate_date, rate, currency: 'USD', fetchedAt: row.fetched_at, sourcePublishedAt: row.source_published_at, raw: row.raw_response, persisted: true };
+        return {
+          date: row.rate_date, rate, currency: 'USD', fetchedAt: row.fetched_at,
+          sourceObservedAt: row.source_observed_at, sourcePublishedAt: row.source_published_at,
+          sourceName: row.source_name, sourceUrl: row.source_url, unit: row.unit,
+          raw: row.raw_response, persisted: true,
+        };
       });
       return { records, attempt: runs[0] ?? null };
     },

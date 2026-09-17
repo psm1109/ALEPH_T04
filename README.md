@@ -28,12 +28,12 @@ node --env-file=.env scripts/backfill.mjs --days=7
 
 | 대상 | 역할 |
 | --- | --- |
-| `exchange_rates` | 날짜당 USD 한 건, 원자료 JSON, 자동 계산한 환율, 실제 수신 시각 |
+| `exchange_rates` | 날짜당 USD 한 건, 원자료 JSON, 자동 계산한 환율, 출처 URL·관측 시각·단위 |
 | `exchange_fetch_runs` | 날짜별 마지막 수집 결과: `pending`, `success`, `no_data`, `error` |
 | `claim_exchange_fetch(date)` | 성공 날짜 중복 수집 방지 및 실패/미수신의 10분 재시도 간격 |
 | `finish_exchange_fetch(...)` | 정상 원자료 저장과 수집 결과 갱신을 하나의 트랜잭션으로 수행 |
 
-`rate`는 `raw_response.deal_bas_r`에서 생성되는 `numeric(12,2)` 컬럼입니다. 앱이 별도 숫자를 잘못 저장할 수 없으며, 서버가 DB에서 다시 읽을 때도 원자료와의 일치를 검사합니다. RLS를 활성화하고 `anon`/`authenticated` 역할의 접근을 차단했습니다. 서버용 키로만 접근하며 브라우저에 Supabase 키가 전달되지 않습니다.
+`rate`는 `raw_response.deal_bas_r`에서 생성되는 `numeric(12,2)` 컬럼입니다. 앱이 별도 숫자를 잘못 저장할 수 없으며, 서버가 DB에서 다시 읽을 때도 원자료뿐 아니라 출처 URL·원천 관측 시각·단위의 일치를 검사합니다. `source_observed_at`은 원천 응답을 실제로 수신한 시각이고, 원천이 별도 발표 시각을 제공하지 않으므로 `source_published_at`은 `NULL`로 유지합니다. RLS를 활성화하고 `anon`/`authenticated` 역할의 접근을 차단했습니다. 서버용 키로만 접근하며 브라우저에 Supabase 키가 전달되지 않습니다.
 
 ## Vercel 배포
 

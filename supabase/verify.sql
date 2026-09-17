@@ -6,6 +6,8 @@ select rate_date,
        to_char(rate, 'FM99,999,999,990.00') || '원' as display_value,
        replace(raw_response ->> 'deal_bas_r', ',', '')::numeric = rate as values_match,
        fetched_at at time zone 'Asia/Seoul' as fetched_at_kst,
+       source_observed_at at time zone 'Asia/Seoul' as source_observed_at_kst,
+       source_name, source_url, unit,
        source_published_at
 from public.exchange_rates
 order by rate_date desc

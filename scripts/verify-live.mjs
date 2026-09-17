@@ -19,11 +19,16 @@ try {
   assert.equal(data.latest.rate, row.rate);
   assert.equal(money(data.latest.rate), money(row.rate));
   assert.equal(data.latest.sourcePublishedAt, null);
+  assert.equal(row.sourceUrl, data.source.url);
+  assert.equal(row.sourceName, data.source.name);
+  assert.equal(row.sourceObservedAt, row.fetchedAt);
+  assert.equal(row.unit, data.unit);
   console.log(JSON.stringify({
     result: 'PASS', date: row.date, raw: row.raw.deal_bas_r,
     stored: row.rate, display: `${money(data.latest.rate)}원`, unit: data.unit,
-    source: data.source.name, sourcePublishedAt: data.latest.sourcePublishedAt,
-    fetchedAt: row.fetchedAt, queriedAt: data.queriedAt, timeZone: data.timeZone,
+    source: row.sourceName, sourceUrl: row.sourceUrl, sourceObservedAt: row.sourceObservedAt,
+    sourcePublishedAt: data.latest.sourcePublishedAt, fetchedAt: row.fetchedAt,
+    unit: row.unit, queriedAt: data.queriedAt, timeZone: data.timeZone,
     note: 'API 응답 및 Supabase 재조회 검증. 실제 DOM은 브라우저에서 별도 확인합니다.',
   }, null, 2));
 } catch (error) {

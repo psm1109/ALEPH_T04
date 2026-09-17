@@ -10,6 +10,9 @@ create table if not exists public.exchange_rates (
   fetched_at timestamptz not null,
   source_published_at timestamptz,
   source_name text not null default '한국수출입은행',
+  source_url text not null default 'https://oapi.koreaexim.go.kr/site/program/financial/exchangeJSON',
+  source_observed_at timestamptz not null,
+  unit text not null default '원 / 1 USD',
   created_at timestamptz not null default now(),
   constraint valid_usd_raw check (
     raw_response ->> 'cur_unit' = 'USD'
@@ -26,6 +29,21 @@ create table if not exists public.exchange_rates (
     and jsonb_typeof(raw_response -> 'result') = 'number'
   )
 );
+
+-- 기존 설치에도 출처 근거 필드를 안전하게 추가하고 기존 수신 시각으로 보완합니다.
+alter table public.exchange_rates add column if not exists source_url text;
+alter table public.exchange_rates add column if not exists source_observed_at timestamptz;
+alter table public.exchange_rates add column if not exists unit text;
+update public.exchange_rates
+set source_url = coalesce(source_url, 'https://oapi.koreaexim.go.kr/site/program/financial/exchangeJSON'),
+    source_observed_at = coalesce(source_observed_at, fetched_at),
+    unit = coalesce(unit, '원 / 1 USD')
+where source_url is null or source_observed_at is null or unit is null;
+alter table public.exchange_rates alter column source_url set default 'https://oapi.koreaexim.go.kr/site/program/financial/exchangeJSON';
+alter table public.exchange_rates alter column source_url set not null;
+alter table public.exchange_rates alter column source_observed_at set not null;
+alter table public.exchange_rates alter column unit set default '원 / 1 USD';
+alter table public.exchange_rates alter column unit set not null;
 
 -- 하루의 마지막 수집 상태. 빈 응답/오류도 남기지만 환율값을 만들어 저장하지 않습니다.
 create table if not exists public.exchange_fetch_runs (
@@ -79,8 +97,12 @@ begin
   end if;
   if p_status = 'success' then
     if p_raw is null or p_fetched_at is null then raise exception 'Raw response is required'; end if;
-    insert into public.exchange_rates(rate_date, raw_response, fetched_at)
-      values (p_date, p_raw, p_fetched_at) on conflict (rate_date) do nothing;
+    insert into public.exchange_rates(
+      rate_date, raw_response, fetched_at, source_observed_at, source_name, source_url, unit
+    ) values (
+      p_date, p_raw, p_fetched_at, p_fetched_at, '한국수출입은행',
+      'https://oapi.koreaexim.go.kr/site/program/financial/exchangeJSON', '원 / 1 USD'
+    ) on conflict (rate_date) do nothing;
   end if;
   update public.exchange_fetch_runs
     set status = p_status, finished_at = now(), error_code = p_error_code
@@ -97,4 +119,7 @@ grant execute on function public.finish_exchange_fetch(date, uuid, text, jsonb, 
 comment on column public.exchange_rates.rate is '원자료 deal_bas_r에서 자동 생성한 원/1USD 기준환율';
 comment on column public.exchange_rates.rate_date is 'API searchdate로 조회한 기준일. Asia/Seoul';
 comment on column public.exchange_rates.source_published_at is 'API 미제공: NULL 유지. 11시를 임의의 실제 고시 시각으로 저장하지 않음';
+comment on column public.exchange_rates.source_observed_at is '공개 원천 응답을 실제로 수신해 관측한 시각';
+comment on column public.exchange_rates.source_url is '조회한 공개 원천 API 주소';
+comment on column public.exchange_rates.unit is '정규화 값의 표시 단위';
 commit;

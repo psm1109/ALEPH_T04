@@ -2,6 +2,7 @@ import { koreanDate } from './public/format.js';
 
 export const SOURCE_URL = 'https://oapi.koreaexim.go.kr/site/program/financial/exchangeJSON';
 export const SOURCE_NAME = '한국수출입은행';
+export const SOURCE_UNIT = '원 / 1 USD';
 
 export class RateError extends Error {
   constructor(code, message) { super(message); this.code = code; }
@@ -30,7 +31,12 @@ export function parseUsd(payload, date, fetchedAt) {
   const matches = payload.filter((row) => row.cur_nm?.replace(/\s/g, '') === '미국달러' && row.cur_unit === 'USD');
   if (matches.length !== 1) throw new RateError('invalid_data', '미국 달러 항목을 정확히 한 건 확인할 수 없어요.');
   const raw = matches[0];
-  return { date, rate: parseRate(raw.deal_bas_r), currency: 'USD', fetchedAt, sourcePublishedAt: null, raw, persisted: false };
+  return {
+    date, rate: parseRate(raw.deal_bas_r), currency: 'USD', fetchedAt,
+    sourceObservedAt: fetchedAt, sourcePublishedAt: null,
+    sourceName: SOURCE_NAME, sourceUrl: SOURCE_URL, unit: SOURCE_UNIT,
+    raw, persisted: false,
+  };
 }
 
 export async function fetchUsd(date = koreanDate(), { apiKey = process.env.api_key, fetchImpl = fetch, now = () => new Date() } = {}) {
