@@ -53,7 +53,7 @@ function render(data) {
   } else if (!isToday) {
     const title = attempt?.status === 'pending' ? '오늘 데이터를 수집하고 있어요' : '오늘 데이터가 아직 도착하지 않았어요';
     const reason = attempt?.status === 'no_data' ? '출처에서 빈 응답을 받았어요. 휴일 또는 고시 전일 수 있지만 정확한 사유는 제공되지 않습니다.' : '현재 확인된 오늘의 환율 기록이 없습니다.';
-    notice(title, `${reason} ${latest ? `최근 확인한 ${dateLabel(latest.date)} 값을 표시합니다.` : '정상 데이터가 확인되면 표시할게요.'}`, `${attemptDescription} · 재수집은 최대 10분 간격으로 시도합니다.`);
+    notice(title, `${reason} ${latest ? `최근 확인한 ${dateLabel(latest.date)} 값을 표시합니다.` : '정상 데이터가 확인되면 표시할게요.'}`, `${attemptDescription} · 데이터 수집은 한국 시간 기준 매일 낮 12에 수집합니다.`);
   } else notice('', '');
 
   $('verification').hidden = !latest;
